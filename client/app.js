@@ -46,8 +46,13 @@ const refresh = coroutine(function*(opt){
         w2ui.cvs.clear();
     }
     try {
+        const mode = '?ACM';
         w2ui.cvs.lock('', true);
-        let res = yield cvs.modified(zon);
+        let res = (yield cvs.modified(zon)).sort((rec1, rec2)=>{
+            return (rec2.directory&&1||0)-(rec1.directory&&1||0) ||
+                mode.indexOf(rec1.mode)-mode.indexOf(rec2.mode) ||
+                collator.compare(rec1.filename, rec2.filename);
+        });
         if (res.length==w2ui.cvs.records.length &&
             w2ui.cvs.records.every((rec, i)=>rec.filename==res[i].filename &&
             rec.mode==res[i].mode))
@@ -56,12 +61,17 @@ const refresh = coroutine(function*(opt){
         }
         w2ui.cvs.clear(false);
         w2ui.cvs.add(res.map(item=>assign(item, {recid: path.join(zon, item.filename)})));
-        w2ui.layout.content('main', '');
-        toolbar.disable('discard');
+        update_toolbar();
     } finally {
         w2ui.cvs.unlock();
     }
 });
+
+const update_toolbar = ()=>{
+        w2ui.layout.content('main', '');
+    w2ui.layout.get('left').toolbar[w2ui.cvs.getSelection().length ?
+        'enable' : 'disable']('discard');
+};
 
 $('#layout').w2layout({
     name: 'layout',
@@ -72,6 +82,7 @@ $('#layout').w2layout({
                     {type: 'menu', id: 'zon', img: 'icon-folder', items: []},
                     {type: 'spacer'},
                     {type: 'break'},
+                    {type: 'button',  id: 'commit', tooltip: 'Commit', icon: 'fa fa-cloud-upload', disabled: true},
                     {type: 'button',  id: 'discard', tooltip: 'Discard', icon: 'fa fa-trash', disabled: true},
                 ],
                 onClick: evt=>{
@@ -114,14 +125,14 @@ w2ui.layout.content('left', $().w2grid({
     name: 'cvs',
     show: {selectColumn: true},
     columns: [
-        {field: 'filename', caption: 'Filename', size: '100%', sortable: true},
-        {field: 'mode', caption: '', size: '25px', attr: 'align=center', sortable: true},
+        {field: 'filename', caption: 'Filename', size: '100%', sortable: false, render: (rec, i)=>
+            $('<div>').append($('<div>').text(' '+rec.filename).prepend($('<span>',
+                {class: `fa fa-${rec.directory ? 'folder' : 'file'}-o`}))).html()},
+        {field: 'mode', caption: '', size: '25px', attr: 'align=center', sortable: false},
     ],
     onSelect: function(evt){
         evt.done(coroutine(function*(){
-            w2ui.layout.get('left').toolbar[this.getSelection().length ?
-                'enable' : 'disable']('discard');
-            w2ui.layout.content('main', '');
+            update_toolbar();
             if (evt.column===null)
                 return;
             let node = this.get(evt.recid);
@@ -155,13 +166,7 @@ w2ui.layout.content('left', $().w2grid({
             }
         }));
     },
-    onUnselect: function(evt){
-        evt.done(()=>{
-            w2ui.layout.content('main', '');
-            w2ui.layout.get('left').toolbar[this.getSelection().length ?
-                'enable' : 'disable']('discard');
-        });
-    },
+    onUnselect: evt=>evt.done(update_toolbar),
 }));
 
 
