@@ -10,8 +10,11 @@ const assign = Object.assign;
 const readFile = Promise.promisify(fs.readFile)
 const writeFile = Promise.promisify(fs.writeFile);
 const cmsettings = {indentUnit: 4, lineNumbers: true};
+const config = assign({
+    collapseIdentical: true,
+}, JSON.parse(localStorage.config||'{}'));
 
-let zon;
+let zon = localStorage.zon;
 
 const refresh = coroutine(function*(opt){
     opt = opt||{};
@@ -42,10 +45,11 @@ const refresh = coroutine(function*(opt){
     if (!zon || opt.zon)
     {
         zon = opt.zon||zons[0];
-        toolbar.set('zon', {text: path.basename(zon)});
-        toolbar.refresh();
         w2ui.cvs.clear();
     }
+    toolbar.set('zon', {text: path.basename(zon)});
+    toolbar.refresh();
+    localStorage.zon = zon;
     try {
         const mode = '?ACM';
         w2ui.cvs.lock('', true);
@@ -199,7 +203,8 @@ w2ui.layout.content('left', $().w2grid({
                 try {
                     w2ui.layout.lock('main', '', true);
                     let cm = CodeMirror.MergeView(w2ui.layout.el('main'),
-                        assign(yield cvs.diff(filename), {collapseIdentical: true}, cmsettings));
+                        assign(yield cvs.diff(filename),
+                            {collapseIdentical: config.collapseIdentical}, cmsettings));
                     let editor = cm.editor();
                     let toolbar = w2ui.layout.get('main').toolbar;
                     toolbar.enable('next_diff', 'prev_diff');
