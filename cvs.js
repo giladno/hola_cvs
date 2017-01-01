@@ -88,6 +88,11 @@ module.exports.diff = coroutine(function*(filename){
     return {orig: res[0], value: res[1], mime: mime.lookup(filename)};
 });
 
+module.exports.add = coroutine(function*(filename){
+    yield execute(path.dirname(filename), 'cvs', ['add',
+        path.basename(filename)]);
+});
+
 module.exports.remove = coroutine(function*(filename){
     yield execute(path.dirname(filename), 'cvs', ['remove', '-Rf',
         path.basename(filename)]);

@@ -68,9 +68,13 @@ const refresh = coroutine(function*(opt){
 });
 
 const update_toolbar = ()=>{
-        w2ui.layout.content('main', '');
-    w2ui.layout.get('left').toolbar[w2ui.cvs.getSelection().length ?
-        'enable' : 'disable']('discard');
+    let toolbar = w2ui.layout.get('left').toolbar;
+    let files = w2ui.cvs.getSelection().map(filename=>w2ui.cvs.get(filename));
+    w2ui.layout.content('main', '');
+    const is_mode = mode=>files.length &&
+        files.filter(rec=>mode.indexOf(rec.mode)>=0).length==files.length;
+    toolbar[is_mode('?AM') ? 'enable' : 'disable']('commit');
+    toolbar[files.length ? 'enable' : 'disable']('discard');
 };
 
 $('#layout').w2layout({
@@ -86,10 +90,27 @@ $('#layout').w2layout({
                     {type: 'button',  id: 'discard', tooltip: 'Discard', icon: 'fa fa-trash', disabled: true},
                 ],
                 onClick: evt=>{
+                    let files = w2ui.cvs.getSelection();
                     switch(evt.target.split(':')[0])
                     {
+                    case 'commit':
+                        evt.done(()=>w2prompt('Commit Message', 'Commit Changes?').ok(coroutine(function*(){
+                            return console.log(this);
+                            for (let filename of files)
+                            {
+                                let node = w2ui.cvs.get(filename);
+                                if (!node)
+                                    return;
+                                switch(node.mode)
+                                {
+                                case '?':
+                                    //yield cvs.add(filename);
+                                    break;
+                                }
+                            }
+                        })));
+                        break;
                     case 'discard':
-                        let files = w2ui.cvs.getSelection();
                         evt.done(()=>w2confirm(files.join('<br>'), 'Discard Changes?').yes(coroutine(function*(){
                             yield Promise.all(files.map(coroutine(function*(filename){
                                 let node = w2ui.cvs.get(filename);
