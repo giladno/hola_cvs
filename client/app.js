@@ -181,7 +181,7 @@ w2ui.layout.content('left', $().w2grid({
                 try {
                     w2ui.layout.lock('main', '', true);
                     let cm = CodeMirror.MergeView(w2ui.layout.el('main'),
-                        assign(yield cvs.diff(filename), cmsettings));
+                        assign(yield cvs.diff(filename), cmsettings, {collapseIdentical: true}));
                     cm.edit.execCommand('goNextDiff');
                 } finally { w2ui.layout.unlock('main'); }
                 break;
