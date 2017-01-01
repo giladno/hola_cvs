@@ -203,6 +203,7 @@ $('#layout').w2layout({
                                     return yield cvs.remove(filename);
                                 case 'C':
                                 case 'M':
+                                case 'U':
                                     return yield cvs.discard(filename);
                                 }
                             })));
