@@ -13,7 +13,7 @@ const create_window = ()=>{
         protocol: 'file:',
         slashes: true,
     }));
-    win.on('closed', ()=>window = null);
+    win.on('closed', ()=>win = null);
     win.on('focus', ()=>win.webContents.send('window', 'focus'));
     win.webContents.openDevTools();
 };
