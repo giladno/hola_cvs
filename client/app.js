@@ -7,7 +7,8 @@ const cvs = require('../cvs.js');
 const mime = require('mime');
 const coroutine = Promise.coroutine;
 const assign = Object.assign;
-const readFile = Promise.promisify(fs.readFile);
+const readFile = Promise.promisify(fs.readFile)
+const writeFile = Promise.promisify(fs.writeFile);
 const cmsettings = {indentUnit: 4, lineNumbers: true};
 
 let zon;
@@ -60,7 +61,8 @@ const refresh = coroutine(function*(opt){
             return;
         }
         w2ui.cvs.clear(false);
-        w2ui.cvs.add(res.map(item=>assign(item, {recid: path.join(zon, item.filename)})));
+        w2ui.cvs.add(res.map(item=>assign(item,
+            {recid: path.join(zon, item.filename)})));
         update_toolbar();
     } finally {
         w2ui.cvs.unlock();
@@ -69,14 +71,16 @@ const refresh = coroutine(function*(opt){
 
 const update_toolbar = ()=>{
     let files = w2ui.cvs.getSelection().map(filename=>w2ui.cvs.get(filename));
+    let toolbar = w2ui.layout.get('main').toolbar;
     w2ui.layout.content('main', '');
-    w2ui.layout.get('main').toolbar.off('click');
-    w2ui.layout.get('main').toolbar.items.forEach(item=>item.disabled = true);
-    w2ui.layout.get('main').toolbar.refresh();
+    toolbar.off('click');
+    toolbar.disable.apply(toolbar, toolbar.items.map(item=>item.id));
     const is_mode = mode=>files.length &&
         files.filter(rec=>mode.indexOf(rec.mode)>=0).length==files.length;
-    w2ui.layout.get('left').toolbar[is_mode('?AM') ? 'enable' : 'disable']('commit');
-    w2ui.layout.get('left').toolbar[files.length ? 'enable' : 'disable']('discard');
+    w2ui.layout.get('left').toolbar[is_mode('?AM') ? 'enable' :
+        'disable']('commit');
+    w2ui.layout.get('left').toolbar[files.length ? 'enable' :
+        'disable']('discard');
 };
 
 $('#layout').w2layout({
@@ -88,8 +92,10 @@ $('#layout').w2layout({
                     {type: 'menu', id: 'zon', img: 'icon-folder', items: []},
                     {type: 'spacer'},
                     {type: 'break'},
-                    {type: 'button',  id: 'commit', tooltip: 'Commit', icon: 'fa fa-cloud-upload', disabled: true},
-                    {type: 'button',  id: 'discard', tooltip: 'Discard', icon: 'fa fa-trash', disabled: true},
+                    {type: 'button', id: 'commit', tooltip: 'Commit',
+                        icon: 'fa fa-cloud-upload', disabled: true},
+                    {type: 'button', id: 'discard', tooltip: 'Discard',
+                        icon: 'fa fa-trash', disabled: true},
                 ],
                 onClick: evt=>{
                     let files = w2ui.cvs.getSelection();
@@ -142,11 +148,12 @@ $('#layout').w2layout({
             }},
         {type: 'main', style: 'background-color: #F5F6F7; padding: 5px;', toolbar: {
             items: [
-                {type: 'button', id: 'save', tooltip: 'Save', icon: 'fa fa-save', disabled: true},
+                {type: 'button', id: 'save', tooltip: 'Save',
+                    icon: 'fa fa-save', disabled: true},
                 {type: 'break'},
                 {type: 'button', id: 'next_diff', tooltip: 'Next Diff',
                     icon: 'fa-angle-double-down fa', disabled: true},
-                {type: 'button', id: 'pref_diff', tooltip: 'Previous Diff',
+                {type: 'button', id: 'prev_diff', tooltip: 'Previous Diff',
                     icon: 'fa-angle-double-up fa', disabled: true},
             ],
         }},
@@ -195,16 +202,20 @@ w2ui.layout.content('left', $().w2grid({
                         assign(yield cvs.diff(filename), {collapseIdentical: true}, cmsettings));
                     let editor = cm.editor();
                     let toolbar = w2ui.layout.get('main').toolbar;
+                    toolbar.enable('next_diff', 'prev_diff');
                     editor.on('change', ()=>toolbar[editor.isClean() ?
                         'disable' : 'enable']('save'));
                     toolbar.on('click', coroutine(function*(evt){
                         switch(evt.target)
                         {
                         case 'save':
+                            yield writeFile(filename, editor.getValue());
+                            editor.markClean();
+                            w2ui.layout.get('main').toolbar.disable('save');
                             return;
                         case 'next_diff':
                             return editor.execCommand('goNextDiff');
-                        case 'pref_diff':
+                        case 'prev_diff':
                             return editor.execCommand('goPrevDiff');
                         }
                     }));
