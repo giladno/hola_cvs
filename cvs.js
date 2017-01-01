@@ -42,6 +42,8 @@ const execute = (dir, cmd, args)=>new Promise((resolve, reject)=>{
         {
             let err = new Error('spawn result error');
             err.code = code;
+            err.stdout = res.stdout;
+            err.stderr = res.stderr;
             return reject(err);
         }
         resolve(res);
@@ -59,7 +61,7 @@ module.exports.modified = coroutine(function*(dir){
         mode: line.substr(0, 1),
     }));
     return yield Promise.all(files.map(entry=>coroutine(function*(){
-        if (entry.mode=='U')
+        if (entry.mode=='U'|| entry.mode=='R')
             return entry;
         let s = yield stat(path.join(dir, entry.filename));
         if (s.isDirectory())
@@ -96,6 +98,11 @@ module.exports.add = coroutine(function*(filename){
 module.exports.remove = coroutine(function*(filename){
     yield execute(path.dirname(filename), 'cvs', ['remove', '-Rf',
         path.basename(filename)]);
+});
+
+module.exports.commit = coroutine(function*(zon, files, message){
+    return yield execute(zon, 'cvs', ['commit'].concat(message ?
+        ['-m', message] : [], files));
 });
 
 module.exports.discard = coroutine(function*(filename, rev){

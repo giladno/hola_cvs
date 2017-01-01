@@ -81,7 +81,7 @@ const update_toolbar = ()=>{
     toolbar.disable.apply(toolbar, toolbar.items.map(item=>item.id));
     const is_mode = mode=>files.length &&
         files.filter(rec=>mode.indexOf(rec.mode)>=0).length==files.length;
-    w2ui.layout.get('left').toolbar[is_mode('?AM') ? 'enable' :
+    w2ui.layout.get('left').toolbar[is_mode('?AMUR') ? 'enable' :
         'disable']('commit');
     w2ui.layout.get('left').toolbar[files.length ? 'enable' :
         'disable']('discard');
@@ -106,6 +106,57 @@ $('#layout').w2layout({
                     switch(evt.target.split(':')[0])
                     {
                     case 'commit':
+                        w2ui.commit.off('action');
+                        w2ui.commit.on('action', coroutine(function*(){
+                            let record = w2ui.commit.record;
+                            if (!(record.message = record.message.trim()))
+                                return $('#w2ui-popup textarea').focus();
+                            w2popup.close();
+                            let message = record.message;
+                            if (record.notify.length)
+                            {
+                                message += '\nNOTIFY: '+
+                                    record.notify.map(user=>user.id).join(' ');
+                            }
+                            files = yield Promise.all(files.map(coroutine(function*(filename){
+                                let node = w2ui.cvs.get(filename);
+                                switch(node.mode)
+                                {
+                                case '?':
+                                    yield cvs.add(filename);
+                                    break;
+                                case 'U':
+                                    yield cvs.remove(filename);
+                                    break;
+                                }
+                                return node.filename;
+                            })));
+                            let res = yield cvs.commit(zon, files, message);
+                            record.message = '';
+                            refresh();
+                        }));
+                        $().w2popup('open', {
+                            title: 'Commit',
+                            body: '<div id=commit style="width: 100%; height: 100%;"></div>',
+                            style: 'padding: 15px 0px 0px 0px',
+                            width: 500,
+                            height: 300,
+                            showMax: true,
+                            onToggle: evt=>{
+                                $(w2ui.commit.box).hide();
+                                evt.done(()=>{
+                                    $(w2ui.commit.box).show();
+                                    w2ui.commit.resize();
+                                });
+                            },
+                            onOpen: evt=>{
+                                evt.done(()=>{
+                                    $('#w2ui-popup #commit').w2render('commit');
+                                    $('#commit [name=files]').text(files.join('\n'));
+                                });
+                            },
+                        });
+                        return;
                         evt.done(()=>w2prompt('Commit Message', 'Commit Changes?').ok(coroutine(function*(){
                             return console.log(this);
                             for (let filename of files)
@@ -233,7 +284,41 @@ w2ui.layout.content('left', $().w2grid({
     onUnselect: evt=>evt.done(update_toolbar),
 }));
 
-
+$().w2form({
+    name: 'commit',
+    style: 'border: 0px; background-color: transparent;',
+    formHTML:
+        `<div class="w2ui-page page-0">
+            <div class=w2ui-field>
+                <label>Message:</label>
+                <div>
+                   <textarea name=message style="width: 100%"></textarea>
+                </div>
+            </div>
+            <div class=w2ui-field>
+                <label>Notify:</label>
+                <div>
+                    <input name=notify>
+                </div>
+            </div>
+            <div class=w2ui-field>
+                <label>Files:</label>
+                <div>
+                    <pre name=files style="padding: 0.4em; width: 100%;
+                      background-color: white; border: 1px solid #bbb;"></pre>
+                </div>
+            </div>
+        </div>
+        <div class=w2ui-buttons>
+            <input type=button class=btn name=save value=Commit>
+        </div>`,
+    record: {message: '', notify: []},
+    fields: [
+        {field: 'message', type: 'textarea', required: true},
+        {field: 'notify',type: 'enum', options: {openOnFocus: true, items: []}},
+    ],
+    actions: {save: ()=>{}},
+});
 electron.ipcRenderer.on('window', (evt, msg)=>{
     if (msg=='focus')
         return refresh();
