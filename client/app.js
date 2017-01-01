@@ -157,6 +157,16 @@ $('#layout').w2layout({
                             }
                             refresh();
                         }));
+                        try {
+                            let filename = path.join(zon, 'pkg/system/db/users.js');
+                            delete require.cache[filename];
+                            w2ui.commit.fields[1].options.items = require(filename).data
+                                .filter(user=>user.active && !user.user_type)
+                                .map(user=>assign({id: user.login,
+                                    text: user.first_name+' '+user.last_name}))
+                                .sort((u1, u2)=>u1.text.toLowerCase()
+                                    .localeCompare(u2.text.toLowerCase()));
+                        } catch(err) {}
                         $().w2popup('open', {
                             title: 'Commit',
                             body: '<div id=commit style="width: 100%; height: 100%;"></div>',
@@ -331,6 +341,7 @@ $().w2form({
     ],
     actions: {save: ()=>{}},
 });
+
 electron.ipcRenderer.on('window', (evt, msg)=>{
     if (msg=='focus')
         return refresh();
