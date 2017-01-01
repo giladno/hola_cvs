@@ -16,6 +16,15 @@ const config = assign({
 
 let zon = localStorage.zon;
 
+let tabs = {console: $('<pre>').css({
+    margin: 0,
+    padding: '0.5em',
+    overflow: 'auto',
+    width: '100%',
+    height: '100%',
+    'background-color': 'white',
+})};
+
 const refresh = coroutine(function*(opt){
     opt = opt||{};
     let toolbar = w2ui.layout.get('left').toolbar;
@@ -131,8 +140,21 @@ $('#layout').w2layout({
                                 }
                                 return node.filename;
                             })));
-                            let res = yield cvs.commit(zon, files, message);
-                            record.message = '';
+                            try {
+                                let res = yield cvs.commit(zon, files, message);
+                                tabs.console.append(res.stdout.trim()+'\n');
+                                record.message = '';
+                            }
+                            catch(err) {
+                                if (err.code)
+                                {
+                                    w2popup.open({
+                                        title: 'CVS Output',
+                                        body: $('<pre style="white-space: pre-wrap;">')
+                                            .text(err.stderr||'')[0].outerHTML,
+                                    });
+                                }
+                            }
                             refresh();
                         }));
                         $().w2popup('open', {
@@ -212,6 +234,10 @@ $('#layout').w2layout({
                     icon: 'fa-angle-double-up fa', disabled: true},
             ],
         }},
+        {type: 'bottom', size: '20%', resizable: true, tabs: {
+            tabs: [{id: 'console', caption: 'Console'}],
+            onClick: evt=>$(w2ui.layout.el('bottom')).empty().append(tabs[evt.target]),
+        }},
     ],
 });
 
@@ -283,6 +309,8 @@ w2ui.layout.content('left', $().w2grid({
     },
     onUnselect: evt=>evt.done(update_toolbar),
 }));
+
+w2ui.layout.get('bottom').tabs.click('console');
 
 $().w2form({
     name: 'commit',
