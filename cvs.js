@@ -61,7 +61,7 @@ module.exports.modified = coroutine(function*(dir){
         mode: line.substr(0, 1),
     }));
     return yield Promise.all(files.map(entry=>coroutine(function*(){
-        if (entry.mode=='U'|| entry.mode=='R')
+        if (entry.mode=='U' || entry.mode=='R')
             return entry;
         let s = yield stat(path.join(dir, entry.filename));
         if (s.isDirectory())

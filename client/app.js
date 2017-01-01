@@ -178,22 +178,6 @@ $('#layout').w2layout({
                                 });
                             },
                         });
-                        return;
-                        evt.done(()=>w2prompt('Commit Message', 'Commit Changes?').ok(coroutine(function*(){
-                            return console.log(this);
-                            for (let filename of files)
-                            {
-                                let node = w2ui.cvs.get(filename);
-                                if (!node)
-                                    return;
-                                switch(node.mode)
-                                {
-                                case '?':
-                                    //yield cvs.add(filename);
-                                    break;
-                                }
-                            }
-                        })));
                         break;
                     case 'discard':
                         evt.done(()=>w2confirm(files.join('<br>'), 'Discard Changes?').yes(coroutine(function*(){
