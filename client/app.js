@@ -180,8 +180,9 @@ w2ui.layout.content('left', $().w2grid({
             case 'M':
                 try {
                     w2ui.layout.lock('main', '', true);
-                    CodeMirror.MergeView(w2ui.layout.el('main'),
+                    let cm = CodeMirror.MergeView(w2ui.layout.el('main'),
                         assign(yield cvs.diff(filename), cmsettings));
+                    cm.edit.execCommand('goNextDiff');
                 } finally { w2ui.layout.unlock('main'); }
                 break;
             }
