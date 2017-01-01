@@ -68,13 +68,15 @@ const refresh = coroutine(function*(opt){
 });
 
 const update_toolbar = ()=>{
-    let toolbar = w2ui.layout.get('left').toolbar;
     let files = w2ui.cvs.getSelection().map(filename=>w2ui.cvs.get(filename));
     w2ui.layout.content('main', '');
+    w2ui.layout.get('main').toolbar.off('click');
+    w2ui.layout.get('main').toolbar.items.forEach(item=>item.disabled = true);
+    w2ui.layout.get('main').toolbar.refresh();
     const is_mode = mode=>files.length &&
         files.filter(rec=>mode.indexOf(rec.mode)>=0).length==files.length;
-    toolbar[is_mode('?AM') ? 'enable' : 'disable']('commit');
-    toolbar[files.length ? 'enable' : 'disable']('discard');
+    w2ui.layout.get('left').toolbar[is_mode('?AM') ? 'enable' : 'disable']('commit');
+    w2ui.layout.get('left').toolbar[files.length ? 'enable' : 'disable']('discard');
 };
 
 $('#layout').w2layout({
@@ -138,7 +140,16 @@ $('#layout').w2layout({
                     }
                 },
             }},
-        {type: 'main', style: 'background-color: #F5F6F7; padding: 5px;'},
+        {type: 'main', style: 'background-color: #F5F6F7; padding: 5px;', toolbar: {
+            items: [
+                {type: 'button', id: 'save', tooltip: 'Save', icon: 'fa fa-save', disabled: true},
+                {type: 'break'},
+                {type: 'button', id: 'next_diff', tooltip: 'Next Diff',
+                    icon: 'fa-angle-double-down fa', disabled: true},
+                {type: 'button', id: 'pref_diff', tooltip: 'Previous Diff',
+                    icon: 'fa-angle-double-up fa', disabled: true},
+            ],
+        }},
     ],
 });
 
@@ -181,8 +192,23 @@ w2ui.layout.content('left', $().w2grid({
                 try {
                     w2ui.layout.lock('main', '', true);
                     let cm = CodeMirror.MergeView(w2ui.layout.el('main'),
-                        assign(yield cvs.diff(filename), cmsettings, {collapseIdentical: true}));
-                    cm.edit.execCommand('goNextDiff');
+                        assign(yield cvs.diff(filename), {collapseIdentical: true}, cmsettings));
+                    let editor = cm.editor();
+                    let toolbar = w2ui.layout.get('main').toolbar;
+                    editor.on('change', ()=>toolbar[editor.isClean() ?
+                        'disable' : 'enable']('save'));
+                    toolbar.on('click', coroutine(function*(evt){
+                        switch(evt.target)
+                        {
+                        case 'save':
+                            return;
+                        case 'next_diff':
+                            return editor.execCommand('goNextDiff');
+                        case 'pref_diff':
+                            return editor.execCommand('goPrevDiff');
+                        }
+                    }));
+                    editor.execCommand('goNextDiff');
                 } finally { w2ui.layout.unlock('main'); }
                 break;
             }
