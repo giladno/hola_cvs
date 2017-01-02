@@ -61,7 +61,6 @@ const refresh = coroutine(function*(opt){
         w2ui.cvs.clear();
     }
     toolbar.set('zon', {text: path.basename(zon)});
-    toolbar.refresh();
     localStorage.zon = zon;
     try {
         const mode = '?ACM';
@@ -71,19 +70,27 @@ const refresh = coroutine(function*(opt){
                 mode.indexOf(rec1.mode)-mode.indexOf(rec2.mode) ||
                 collator.compare(rec1.filename, rec2.filename);
         });
-        if (res.length==w2ui.cvs.records.length &&
-            w2ui.cvs.records.every((rec, i)=>rec.filename==res[i].filename &&
+        if (res.length!=w2ui.cvs.records.length ||
+            !w2ui.cvs.records.every((rec, i)=>rec.filename==res[i].filename &&
             rec.mode==res[i].mode))
         {
-            return;
+            w2ui.cvs.clear(false);
+            w2ui.cvs.add(res.map(item=>assign(item,
+                {recid: path.join(zon, item.filename)})));
+            update_toolbar();
         }
-        w2ui.cvs.clear(false);
-        w2ui.cvs.add(res.map(item=>assign(item,
-            {recid: path.join(zon, item.filename)})));
-        update_toolbar();
     } finally {
         w2ui.cvs.unlock();
     }
+    let stash = path.join(zon, '.stash');
+    yield Promise.promisify(fs.ensureDir)(stash);
+    let files = yield Promise.promisify(fs.readdir)(stash);
+    let menu = toolbar.get('stash');
+    menu.items = menu.items.slice(0, 2).concat(files.map(filename=>assign({
+        text: path.basename(filename, '.patch'),
+        id: path.join(stash, filename),
+    })));
+    toolbar.refresh();
 });
 
 const update_toolbar = ()=>{
@@ -97,7 +104,7 @@ const update_toolbar = ()=>{
     w2ui.layout.get('left').toolbar[is_mode('?AMUR') ? 'enable' :
         'disable']('commit');
     w2ui.layout.get('left').toolbar[is_mode('M') ? 'enable' :
-        'disable']('stash');
+        'disable']('stash:');
     w2ui.layout.get('left').toolbar[files.length ? 'enable' :
         'disable']('discard');
 };
@@ -108,13 +115,16 @@ $('#layout').w2layout({
         {type: 'left', size: '30%', resizable: true, style: 'background-color: #F5F6F7;',
             toolbar: {
                 items: [
+                    {type: 'menu', id: 'stash', icon: 'fa fa-suitcase', items: [
+                        {text: 'Stash...', id: ''},
+                        {text: '--'},
+                    ]},
+                    {type: 'break'},
                     {type: 'menu', id: 'zon', img: 'icon-folder', items: []},
                     {type: 'spacer'},
                     {type: 'button', id: 'commit', tooltip: 'Commit',
                         icon: 'fa fa-cloud-upload', disabled: true},
                     {type: 'break'},
-                    {type: 'button', id: 'stash', tooltip: 'Stash',
-                        icon: 'fa fa-upload', disabled: true},
                     {type: 'button', id: 'discard', tooltip: 'Discard',
                         icon: 'fa fa-trash', disabled: true},
                 ],
@@ -255,11 +265,31 @@ $('#layout').w2layout({
                         });
                         break;
                     case 'stash':
-                        w2prompt('Name', 'Stash').ok(coroutine(function*(name){
-                            yield cvs.stash(zon,
-                                files.map(filename=>w2ui.cvs.get(filename).filename), name);
+                        if (!evt.subItem)
+                            return;
+                        if (!evt.subItem.id)
+                        {
+                            return w2prompt('Name', 'Stash').ok(coroutine(function*(name){
+                                yield cvs.stash(zon,
+                                    files.map(filename=>w2ui.cvs.get(filename).filename), name);
+                                yield refresh();
+                            }));
+                        }
+                        try {
+                            let res = yield cvs.patch(zon, evt.subItem.id);
+                            tabs.console.append(res.stdout.trim()+'\n');
                             yield refresh();
-                        }));
+                        }
+                        catch(err) {
+                            if (err.code)
+                            {
+                                w2popup.open({
+                                    title: 'Patch Output',
+                                    body: $('<pre style="white-space: pre-wrap;">')
+                                        .text(err.stdout||'')[0].outerHTML,
+                                });
+                            }
+                        }
                         break;
                     case 'zon':
                         if (!evt.subItem)
