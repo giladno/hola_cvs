@@ -212,25 +212,39 @@ $('#layout').w2layout({
                         });
                         break;
                     case 'discard':
-                        evt.done(()=>w2confirm(files.join('<br>'), 'Discard Changes?').yes(coroutine(function*(){
-                            yield Promise.all(files.map(coroutine(function*(filename){
-                                let node = w2ui.cvs.get(filename);
-                                if (!node)
-                                    return;
-                                switch(node.mode)
-                                {
-                                case '?':
-                                    return yield Promise.promisify(fs.remove)(filename);
-                                case 'A':
-                                    return yield cvs.remove(filename);
-                                case 'C':
-                                case 'M':
-                                case 'U':
-                                    return yield cvs.discard(filename);
-                                }
-                            })));
-                            yield refresh();
-                        })));
+                        w2popup.open({
+                            title: 'Discard',
+                            body: $('<div class=w2ui-left>').css({padding: '1em 0.5em'}).append([
+                                $('<span>').text('Discard '+files.length+' file(s)?'),
+                                $('<pre>').text(files.join('\n')),
+                            ])[0].outerHTML,
+                            buttons: '<input type=button class=btn value=Discard>',
+                            modal: true,
+                            onOpen: evt=>{
+                                evt.done(()=>{
+                                    $('#w2ui-popup .btn').on('click', coroutine(function*(evt){
+                                        w2popup.close();
+                                        yield Promise.all(files.map(coroutine(function*(filename){
+                                            let node = w2ui.cvs.get(filename);
+                                            if (!node)
+                                                return;
+                                            switch(node.mode)
+                                            {
+                                            case '?':
+                                                return yield Promise.promisify(fs.remove)(filename);
+                                            case 'A':
+                                                return yield cvs.remove(filename);
+                                            case 'C':
+                                            case 'M':
+                                            case 'U':
+                                                return yield cvs.discard(filename);
+                                            }
+                                        })));
+                                        yield refresh();
+                                    }));
+                                });
+                            },
+                        });
                         break;
                     case 'zon':
                         if (!evt.subItem)
