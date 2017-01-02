@@ -3,6 +3,7 @@ const url = require('url');
 const path = require('path');
 const electron = require('electron');
 const app = electron.app;
+const argv = require('minimist')(process.argv.slice(2));
 
 let win;
 
@@ -15,7 +16,8 @@ const create_window = ()=>{
     }));
     win.on('closed', ()=>win = null);
     win.on('focus', ()=>win.webContents.send('window', 'focus'));
-    win.webContents.openDevTools();
+    if (argv.debug)
+        win.webContents.openDevTools();
 };
 
 app.on('ready', create_window);
