@@ -8,7 +8,11 @@ const argv = require('minimist')(process.argv.slice(2));
 let win;
 
 const create_window = ()=>{
-    win = new electron.BrowserWindow({width: 1024, height: 768});
+    win = new electron.BrowserWindow({
+        width: 1024,
+        height: 768,
+        icon: path.join(__dirname, 'logo.png'),
+    });
     win.loadURL(url.format({
         pathname: path.join(__dirname, 'client', 'index.html'),
         protocol: 'file:',
