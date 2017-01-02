@@ -6,8 +6,6 @@ const child_process = require('child_process');
 const mime = require('mime');
 const coroutine = Promise.coroutine;
 const assign = Object.assign;
-const stat = Promise.promisify(fs.stat);
-const readFile = Promise.promisify(fs.readFile);
 
 const execute = (dir, cmd, args)=>new Promise((resolve, reject)=>{
     let opt = dir;
@@ -38,7 +36,7 @@ const execute = (dir, cmd, args)=>new Promise((resolve, reject)=>{
             err.signal = signal;
             return reject(err);
         }
-        if (res.code = code)
+        if ((res.code = code) && !opt.ignore_code)
         {
             let err = new Error('spawn result error');
             err.code = code;
@@ -63,7 +61,7 @@ module.exports.modified = coroutine(function*(dir){
     return yield Promise.all(files.map(entry=>coroutine(function*(){
         if (entry.mode=='U' || entry.mode=='R')
             return entry;
-        let s = yield stat(path.join(dir, entry.filename));
+        let s = yield Promise.promisify(fs.stat)(path.join(dir, entry.filename));
         if (s.isDirectory())
             entry.directory = true;
         return entry;
@@ -85,7 +83,7 @@ module.exports.revision = coroutine(function*(filename, rev){
 module.exports.diff = coroutine(function*(filename){
     let res = yield Promise.all([
         module.exports.revision(filename),
-        readFile(filename, 'utf8'),
+        Promise.promisify(fs.readFile)(filename, 'utf8'),
     ]);
     return {orig: res[0], value: res[1], mime: mime.lookup(filename)};
 });
@@ -114,6 +112,40 @@ module.exports.discard = coroutine(function*(filename, rev){
     }
     yield execute(path.dirname(filename), 'cvs', ['update', '-C',
         '-r', rev, path.basename(filename)]);
+});
+
+module.exports.stash = coroutine(function*(zon, files, name){
+    let stash = path.join(zon, '.stash');
+    yield Promise.promisify(fs.ensureDir)(stash);
+    let res = yield execute({
+        dir: zon,
+        cmd: 'cvs',
+        args: ['diff', '-u'].concat(files),
+        ignore_code: true,
+    });
+    if (res.code!=1)
+        throw new Error('Invalid result code');
+    let patch = path.join(stash, name+'.patch');
+    yield Promise.promisify(fs.writeFile)(patch, res.stdout);
+    yield execute({
+        dir: zon,
+        cmd: 'patch',
+        args: ['-p0', '-R', '--dry-run'],
+        stdin: res.stdout,
+    });
+    yield Promise.all(files.map(filename=>module.exports
+        .discard(path.join(zon, filename))));
+});
+
+module.exports.patch = coroutine(function*(zon, filename){
+    let res = yield execute({
+        dir: zon,
+        cmd: 'patch',
+        args: ['-p0'],
+        stdin: yield Promise.promisify(fs.readFile)(filename, 'utf8'),
+    });
+    yield Promise.promisify(fs.unlink)(filename);
+    return res;
 });
 
 module.exports.lint = coroutine(function*(zon, files, message){

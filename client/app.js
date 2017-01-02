@@ -96,6 +96,8 @@ const update_toolbar = ()=>{
         files.filter(rec=>mode.indexOf(rec.mode)>=0).length==files.length;
     w2ui.layout.get('left').toolbar[is_mode('?AMUR') ? 'enable' :
         'disable']('commit');
+    w2ui.layout.get('left').toolbar[is_mode('M') ? 'enable' :
+        'disable']('stash');
     w2ui.layout.get('left').toolbar[files.length ? 'enable' :
         'disable']('discard');
 };
@@ -108,9 +110,11 @@ $('#layout').w2layout({
                 items: [
                     {type: 'menu', id: 'zon', img: 'icon-folder', items: []},
                     {type: 'spacer'},
-                    {type: 'break'},
                     {type: 'button', id: 'commit', tooltip: 'Commit',
                         icon: 'fa fa-cloud-upload', disabled: true},
+                    {type: 'break'},
+                    {type: 'button', id: 'stash', tooltip: 'Stash',
+                        icon: 'fa fa-upload', disabled: true},
                     {type: 'button', id: 'discard', tooltip: 'Discard',
                         icon: 'fa fa-trash', disabled: true},
                 ],
@@ -249,6 +253,13 @@ $('#layout').w2layout({
                                 });
                             },
                         });
+                        break;
+                    case 'stash':
+                        w2prompt('Name', 'Stash').ok(coroutine(function*(name){
+                            yield cvs.stash(zon,
+                                files.map(filename=>w2ui.cvs.get(filename).filename), name);
+                            yield refresh();
+                        }));
                         break;
                     case 'zon':
                         if (!evt.subItem)
