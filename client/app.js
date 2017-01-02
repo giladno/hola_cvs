@@ -110,11 +110,33 @@ $('#layout').w2layout({
                     {type: 'button', id: 'discard', tooltip: 'Discard',
                         icon: 'fa fa-trash', disabled: true},
                 ],
-                onClick: evt=>{
+                onClick: coroutine(function*(evt){
                     let files = w2ui.cvs.getSelection();
                     switch(evt.target.split(':')[0])
                     {
                     case 'commit':
+                        try {
+                            yield cvs.lint(zon, files.map(filename=>{
+                                let node = w2ui.cvs.get(filename);
+                                switch (node.mode)
+                                {
+                                case 'R':
+                                case 'U':
+                                    return '';
+                                }
+                                return node.filename;
+                            }));
+                        }
+                        catch(err) {
+                            if (err.stdout)
+                            {
+                                w2popup.open({
+                                    title: 'Lint',
+                                    body: $('<pre style="white-space: pre-wrap;">').text(err.stdout)[0].outerHTML,
+                                });
+                            }
+                            return;
+                        }
                         w2ui.commit.off('action');
                         w2ui.commit.on('action', coroutine(function*(){
                             let record = w2ui.commit.record;
@@ -216,7 +238,7 @@ $('#layout').w2layout({
                         refresh({zon: evt.subItem.id});
                         break;
                     }
-                },
+                }),
             }},
         {type: 'main', style: 'background-color: #F5F6F7; padding: 5px;', toolbar: {
             items: [

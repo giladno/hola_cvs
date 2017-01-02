@@ -115,3 +115,11 @@ module.exports.discard = coroutine(function*(filename, rev){
     yield execute(path.dirname(filename), 'cvs', ['update', '-C',
         '-r', rev, path.basename(filename)]);
 });
+
+module.exports.lint = coroutine(function*(zon, files, message){
+    files = files.filter(filename=>/\.(js|html|css|json|pl|less)$/
+        .test(path.extname(filename)));
+    if (!files.length)
+        return;
+    return yield execute(zon, 'zlint', files);
+});
