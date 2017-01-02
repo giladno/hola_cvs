@@ -9,9 +9,13 @@ const coroutine = Promise.coroutine;
 const assign = Object.assign;
 const readFile = Promise.promisify(fs.readFile)
 const writeFile = Promise.promisify(fs.writeFile);
-const cmsettings = {indentUnit: 4, lineNumbers: true};
 const config = assign({
-    collapseIdentical: true,
+    cm: {
+        indentUnit: 4,
+        lineNumbers: true,
+        collapseIdentical: true,
+        connect: 'align',
+    },
 }, JSON.parse(localStorage.config||'{}'));
 
 let zon = localStorage.zon;
@@ -303,7 +307,7 @@ w2ui.layout.content('left', $().w2grid({
                     w2ui.layout.lock('main', '', true);
                     CodeMirror(w2ui.layout.el('main'),
                         assign({value: yield readFile(filename, 'utf8'),
-                            readOnly: true, mode: mime.lookup(filename)}, cmsettings));
+                            readOnly: true, mode: mime.lookup(filename)}, config.cm));
                 } finally { w2ui.layout.unlock('main'); }
                 break;
             case 'C':
@@ -311,8 +315,7 @@ w2ui.layout.content('left', $().w2grid({
                 try {
                     w2ui.layout.lock('main', '', true);
                     let cm = CodeMirror.MergeView(w2ui.layout.el('main'),
-                        assign(yield cvs.diff(filename),
-                            {collapseIdentical: config.collapseIdentical}, cmsettings));
+                        assign(yield cvs.diff(filename), config.cm));
                     let editor = cm.editor();
                     let toolbar = w2ui.layout.get('main').toolbar;
                     toolbar.enable('next_diff', 'prev_diff');
