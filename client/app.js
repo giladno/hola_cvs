@@ -1,4 +1,5 @@
 'use strict';
+const _ = require('lodash');
 const Promise = require('bluebird');
 const electron = require('electron');
 const path = require('path');
@@ -91,7 +92,8 @@ const update_toolbar = ()=>{
     let toolbar = w2ui.layout.get('main').toolbar;
     w2ui.layout.content('main', '');
     toolbar.off('click');
-    toolbar.disable.apply(toolbar, toolbar.items.map(item=>item.id));
+    toolbar.disable.apply(toolbar, toolbar.items.map(item=>item.id)
+        .filter(id=>id!='settings'));
     const is_mode = mode=>files.length &&
         files.filter(rec=>mode.indexOf(rec.mode)>=0).length==files.length;
     w2ui.layout.get('left').toolbar[is_mode('?AMUR') ? 'enable' :
@@ -226,12 +228,10 @@ $('#layout').w2layout({
                                     w2ui.commit.resize();
                                 });
                             },
-                            onOpen: evt=>{
-                                evt.done(()=>{
-                                    $('#w2ui-popup #commit').w2render('commit');
-                                    $('#commit [name=files]').text(files.join('\n'));
-                                });
-                            },
+                            onOpen: evt=>evt.done(()=>{
+                                $('#w2ui-popup #commit').w2render('commit');
+                                $('#commit [name=files]').text(files.join('\n'));
+                            }),
                         });
                         break;
                     case 'discard':
@@ -313,6 +313,31 @@ $('#layout').w2layout({
                     icon: 'fa-angle-double-down fa', disabled: true},
                 {type: 'button', id: 'prev_diff', tooltip: 'Previous Diff',
                     icon: 'fa-angle-double-up fa', disabled: true},
+                {type: 'spacer'},
+                {type: 'button', id: 'settings', tooltip: 'Settings',
+                    icon: 'fa fa-gear', onClick: evt=>evt.done(()=>$().w2popup('open', {
+                        title: 'Settings',
+                        body: '<div id=settings style="width: 100%; height: 100%;"></div>',
+                        style: 'padding: 15px 0px 0px 0px',
+                        width: 500,
+                        height: 300,
+                        showMax: true,
+                        onToggle: evt=>{
+                            $(w2ui.settings.box).hide();
+                            evt.done(()=>{
+                                $(w2ui.settings.box).show();
+                                w2ui.settings.resize();
+                            });
+                        },
+                        onOpen: evt=>evt.done(()=>{
+                            $('#w2ui-popup #settings').w2render('settings');
+                        }),
+                        onClose: evt=>evt.done(()=>{
+                            _.forEach(w2ui.settings.record,
+                                (val, path)=>_.set(config, path, val));
+                            localStorage.config = JSON.stringify(config);
+                        }),
+                    }))},
             ],
         }},
         {type: 'bottom', size: '20%', resizable: true, tabs: {
@@ -426,13 +451,28 @@ $().w2form({
         <div class=w2ui-buttons>
             <input type=button class=btn name=save value=Commit>
         </div>`,
-    record: {message: '', notify: []},
+    record: {message: '', notify: [], dry_run: false},
     fields: [
         {field: 'message', type: 'textarea', required: true},
         {field: 'notify', type: 'enum', options: {openOnFocus: true, items: []}},
         {field: 'dry_run', type: 'checkbox'},
     ],
     actions: {save: ()=>{}},
+});
+
+const fields = [
+    {field: 'cm.indentUnit', type: 'int', html: {caption: 'Indent Unit'}},
+    {field: 'cm.lineNumbers', type: 'checkbox', html: {caption: 'Show Line Numbers'}},
+    {field: 'cm.collapseIdentical', type: 'checkbox', html: {caption: 'Collapse Identical'}},
+    {field: 'lint.code', type: 'checkbox', html: {caption: 'Lint Code'}},
+];
+
+$().w2form({
+    name: 'settings',
+    style: 'border: 0px; background-color: transparent;',
+    record: fields.reduce((o, field)=>assign(o,
+        {[field.field]: _.get(config, field.field)}), {}),
+    fields: fields,
 });
 
 electron.ipcRenderer.on('window', (evt, msg)=>{
