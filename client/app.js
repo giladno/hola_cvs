@@ -158,7 +158,7 @@ $('#layout').w2layout({
                         w2ui.commit.off('action');
                         w2ui.commit.on('action', coroutine(function*(){
                             let record = w2ui.commit.record;
-                            if (!(record.message = record.message.trim()))
+                            if (!(record.message = record.message.trim()) && !record.dry_run)
                                 return $('#w2ui-popup textarea').focus();
                             w2popup.close();
                             let message = record.message;
@@ -169,6 +169,8 @@ $('#layout').w2layout({
                             }
                             files = yield Promise.all(files.map(coroutine(function*(filename){
                                 let node = w2ui.cvs.get(filename);
+                                if (record.dry_run)
+                                    return node.filename;
                                 switch(node.mode)
                                 {
                                 case '?':
@@ -181,9 +183,18 @@ $('#layout').w2layout({
                                 return node.filename;
                             })));
                             try {
-                                let res = yield cvs.commit(zon, files, message);
+                                let res = yield cvs.commit({
+                                    zon: zon,
+                                    files: files,
+                                    message: message,
+                                    dry_run: record.dry_run,
+                                });
                                 tabs.console.append(res.stdout.trim()+'\n');
-                                record.message = '';
+                                assign(record, {
+                                    message: '',
+                                    dry_run: false,
+                                    notify: [],
+                                });
                             }
                             catch(err) {
                                 if (err.code)
@@ -411,6 +422,12 @@ $().w2form({
                       background-color: white; border: 1px solid #bbb;"></pre>
                 </div>
             </div>
+            <div class=w2ui-field>
+                <label>Dry Run:</label>
+                <div>
+                    <input name=dry_run type=checkbox>
+                </div>
+            </div>
         </div>
         <div class=w2ui-buttons>
             <input type=button class=btn name=save value=Commit>
@@ -418,7 +435,8 @@ $().w2form({
     record: {message: '', notify: []},
     fields: [
         {field: 'message', type: 'textarea', required: true},
-        {field: 'notify',type: 'enum', options: {openOnFocus: true, items: []}},
+        {field: 'notify', type: 'enum', options: {openOnFocus: true, items: []}},
+        {field: 'dry_run', type: 'checkbox'},
     ],
     actions: {save: ()=>{}},
 });

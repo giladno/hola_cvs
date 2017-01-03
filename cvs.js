@@ -99,8 +99,18 @@ module.exports.remove = coroutine(function*(filename){
 });
 
 module.exports.commit = coroutine(function*(zon, files, message){
-    return yield execute(zon, 'cvs', ['commit'].concat(message ?
-        ['-m', message] : [], files));
+    let opt = zon;
+    if (typeof zon!='object')
+    {
+        opt = {
+            zon: zon,
+            files: files,
+            message: message,
+        };
+    }
+    return yield execute(opt.zon, 'cvs', [].concat(opt.dry_run ? ['-n'] : [],
+        'commit', (opt.message||opt.dry_run) ? ['-m', opt.message||'dry run'] : [],
+        opt.files));
 });
 
 module.exports.discard = coroutine(function*(filename, rev){
@@ -153,5 +163,5 @@ module.exports.lint = coroutine(function*(zon, files, message){
         .test(path.extname(filename)));
     if (!files.length)
         return;
-    return yield execute(zon, 'zlint', files);
+    return yield execute(zon, 'zlint', [].concat(files));
 });
