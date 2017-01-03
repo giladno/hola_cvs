@@ -202,7 +202,8 @@ $('#layout').w2layout({
                             refresh();
                         }));
                         try {
-                            let filename = path.join(zon, 'pkg/system/db/users.js');
+                            let filename = path.join(process.env.PROJECT_PATH||zon,
+                                'pkg/system/db/users.js');
                             delete require.cache[filename];
                             w2ui.commit.fields[1].options.items = require(filename).data
                                 .filter(user=>user.active && !user.user_type)
