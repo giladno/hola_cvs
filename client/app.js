@@ -3,20 +3,13 @@ const Promise = require('bluebird');
 const electron = require('electron');
 const path = require('path');
 const fs = require('fs-extra');
+const config = require('../config.js');
 const cvs = require('../cvs.js');
 const mime = require('mime');
 const coroutine = Promise.coroutine;
 const assign = Object.assign;
 const readFile = Promise.promisify(fs.readFile)
 const writeFile = Promise.promisify(fs.writeFile);
-const config = assign({
-    cm: {
-        indentUnit: 4,
-        lineNumbers: true,
-        collapseIdentical: true,
-        connect: 'align',
-    },
-}, JSON.parse(localStorage.config||'{}'));
 
 let zon = localStorage.zon;
 

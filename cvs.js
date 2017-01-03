@@ -4,6 +4,7 @@ const path = require('path');
 const fs = require('fs-extra');
 const child_process = require('child_process');
 const mime = require('mime');
+const config = require('./config.js');
 const coroutine = Promise.coroutine;
 const assign = Object.assign;
 
@@ -163,5 +164,6 @@ module.exports.lint = coroutine(function*(zon, files, message){
         .test(path.extname(filename)));
     if (!files.length)
         return;
-    return yield execute(zon, 'zlint', [].concat(files));
+    return yield execute(zon, 'zlint', [].concat(config.lint.code ? ['-c'] : [],
+        files));
 });
