@@ -59,7 +59,9 @@ const refresh = coroutine(function*(opt){
     try {
         const mode = '?ACM';
         w2ui.cvs.lock('', true);
-        let res = (yield cvs.modified(zon)).sort((rec1, rec2)=>{
+        let res = yield cvs.modified(zon);
+        res = res.filter(rec=>rec.filename!='.stash');
+        res = res.sort((rec1, rec2)=>{
             return (rec2.directory&&1||0)-(rec1.directory&&1||0) ||
                 mode.indexOf(rec1.mode)-mode.indexOf(rec2.mode) ||
                 collator.compare(rec1.filename, rec2.filename);
@@ -366,7 +368,7 @@ w2ui.layout.content('left', $().w2grid({
                 return;
             let filename = path.join(zon, node.filename);
             if (filename.indexOf('.')>=0 &&
-                !/\.(js|html|css|txt|log|json|sh|pl|h|c|csv|patch|pem)$/i.test(filename))
+                !/\.(js|html|css|txt|log|json|sh|pl|h|c|csv|patch|pem|crt)$/i.test(filename))
             {
                 return;
             }
