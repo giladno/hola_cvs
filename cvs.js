@@ -3,7 +3,7 @@ const Promise = require('bluebird');
 const path = require('path');
 const fs = require('fs-extra');
 const child_process = require('child_process');
-const mime = require('mime');
+const mime = require('mime-types');
 const config = require('./config.js');
 const coroutine = Promise.coroutine;
 const assign = Object.assign;
@@ -86,7 +86,8 @@ module.exports.diff = coroutine(function*(filename){
         module.exports.revision(filename),
         Promise.promisify(fs.readFile)(filename, 'utf8'),
     ]);
-    return {orig: res[0], value: res[1], mime: mime.lookup(filename)};
+    return {orig: res[0], value: res[1],
+        mime: mime.lookup(filename)||'application/octet-stream'};
 });
 
 module.exports.add = coroutine(function*(filename){

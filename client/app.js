@@ -6,7 +6,7 @@ const path = require('path');
 const fs = require('fs-extra');
 const config = require('../config.js');
 const cvs = require('../cvs.js');
-const mime = require('mime');
+const mime = require('mime-types');
 const coroutine = Promise.coroutine;
 const assign = Object.assign;
 const readFile = Promise.promisify(fs.readFile)
@@ -367,10 +367,11 @@ w2ui.layout.content('left', $().w2grid({
             if (node.directory)
                 return;
             let filename = path.join(zon, node.filename);
-            if (filename.indexOf('.')>=0 &&
-                !/\.(js|html|css|txt|log|json|sh|pl|h|c|csv|patch|pem|crt)$/i.test(filename))
+            let type = mime.lookup(filename)||'application/octet-stream';
+            console.log(type);
+            if (!/^(text)\/|(xml|x-sh|ca-cert|perl|javascript)$/.test(type))
             {
-                return;
+                return console.log('binary file:', filename, type);
             }
             switch (node.mode)
             {
@@ -380,7 +381,7 @@ w2ui.layout.content('left', $().w2grid({
                     w2ui.layout.lock('main', '', true);
                     CodeMirror(w2ui.layout.el('main'),
                         assign({value: yield readFile(filename, 'utf8'),
-                            readOnly: true, mode: mime.lookup(filename)}, config.cm));
+                            readOnly: true, mode: type}, config.cm));
                 } finally { w2ui.layout.unlock('main'); }
                 break;
             case 'C':
